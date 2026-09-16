@@ -76,6 +76,11 @@ Production deployment requires the signing variables documented in [`wear-os/AGE
 
 ## Omarchy plugin
 
+The Omarchy plugin provides a compact desktop panel for Bunkialo's timetable,
+mess menu, notifications, and WiFix controls:
+
+![Bunkialo Omarchy plugin panel](docs/images/omarchy-plugin-panel.png)
+
 Install only the plugin with Omarchy's plugin CLI:
 
 ```bash
