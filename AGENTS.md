@@ -347,8 +347,9 @@ components/
 
 ### Wear OS timetable extension
 
-1. The native Wear OS Gradle app lives under `wear-os/` and uses package ID
-   `com.codialo.bunkialo`.
+1. The native Wear OS Gradle app lives under `wear-os/` and uses the same Play
+   Store application ID as the phone app: `com.codialo.Bunkialo2`. Its internal
+   Kotlin namespace remains `com.codialo.bunkialo`.
 2. The built-in timetable in `wear-os/app/src/main/java/com/codialo/bunkialo/schedule/Timetable.kt`
    is the default and reset target.
 3. The phone-side `modules/wear-timetable` Expo module sends only the selected timetable

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-readonly PACKAGE_ID="com.codialo.bunkialo"
+readonly PACKAGE_ID="com.codialo.Bunkialo2"
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 usage() {

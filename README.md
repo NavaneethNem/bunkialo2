@@ -44,7 +44,7 @@ Download the latest Android development APK from the [GitHub Releases page](http
 
 ## Wear OS app
 
-The native Wear OS timetable extension lives in [`wear-os/`](wear-os/). It is a separate Kotlin/Compose app inside this repository, using the package `com.codialo.bunkialo`.
+The native Wear OS timetable extension lives in [`wear-os/`](wear-os/). It is a separate Kotlin/Compose app inside this repository, using the same Play Store application ID as the phone app: `com.codialo.Bunkialo2`. Its internal Kotlin namespace remains `com.codialo.bunkialo`.
 
 ![Bunkialo Wear OS timetable](docs/images/wear-os-timetable.png)
 

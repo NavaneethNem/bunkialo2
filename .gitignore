@@ -47,9 +47,12 @@ app-example
 # generated native folders
 /ios
 /android
+**/.gradle/
+**/build/
 
 # generated script artifacts
 /artifacts/
 src/scripts/lms-download-report.json
 .vercel
 .env*
+credentials.json
