@@ -55,6 +55,11 @@ export const CATEGORY_META: Record<AcademicEventCategory, CategoryMeta> = {
         color: Colors.status.success,
         icon: "ribbon-outline",
     },
+    club: {
+        label: "Club Events",
+        color: Colors.courseColors[2],
+        icon: "calendar-outline",
+    },
 };
 
 export const CATEGORY_ORDER: AcademicEventCategory[] = [

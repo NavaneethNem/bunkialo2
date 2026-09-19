@@ -14,6 +14,7 @@ import { useAttendanceStore } from "@/stores/attendance-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDashboardStore } from "@/stores/dashboard-store";
 import { useLmsResourcesStore } from "@/stores/lms-resources-store";
+import { useAcademicCalendarFeedStore } from "@/stores/academic-calendar-feed-store";
 import { usePopupStore } from "@/stores/popup-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { initializeNotifications } from "@/utils/notifications";
@@ -66,6 +67,12 @@ export default function DashboardScreen() {
   } = useDashboardStore();
   const fetchAttendance = useAttendanceStore((state) => state.fetchAttendance);
   const { isOffline, setOffline, username } = useAuthStore();
+  const academicCalendarFeedHydrated = useAcademicCalendarFeedStore(
+    (state) => state.hasHydrated,
+  );
+  const fetchAcademicCalendarEvents = useAcademicCalendarFeedStore(
+    (state) => state.fetchGoogleEvents,
+  );
   const { hasHydrated: resourcesHydrated, prefetchEnrolledCourseResources } =
     useLmsResourcesStore();
   const refreshIntervalMinutes = useSettingsStore(
@@ -93,6 +100,30 @@ export default function DashboardScreen() {
   const hasCompletedInitialRefresh = useRef(false);
   const hasDeferredResourcePrefetch = useRef(false);
   const isAttendanceRefreshQueued = useRef(false);
+  const hasFetchedAcademicCalendar = useRef(false);
+
+  useEffect(() => {
+    if (
+      !hasHydrated ||
+      !academicCalendarFeedHydrated ||
+      isOffline ||
+      hasFetchedAcademicCalendar.current
+    ) {
+      return;
+    }
+    hasFetchedAcademicCalendar.current = true;
+
+    const task = InteractionManager.runAfterInteractions(() => {
+      void fetchAcademicCalendarEvents();
+    });
+
+    return () => task.cancel();
+  }, [
+    academicCalendarFeedHydrated,
+    fetchAcademicCalendarEvents,
+    hasHydrated,
+    isOffline,
+  ]);
 
   const queueInvisibleAttendanceRefresh = useCallback(() => {
     if (isAttendanceRefreshQueued.current) return;

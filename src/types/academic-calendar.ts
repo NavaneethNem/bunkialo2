@@ -13,7 +13,10 @@ export type AcademicEventCategory =
   | "sports"
   | "festival"
   | "admin"
-  | "result";
+  | "result"
+  | "club";
+
+export type AcademicEventSource = "institutional" | "google-calendar";
 
 export interface AcademicTermInfo {
   id: AcademicTermId;
@@ -33,6 +36,12 @@ export interface AcademicEvent {
   termId: AcademicTermId;
   note?: string;
   isTentative?: boolean;
+  origin?: AcademicEventSource;
+  startAt?: string;
+  endAt?: string;
+  allDay?: boolean;
+  location?: string;
+  calendarUrl?: string;
 }
 
 export interface AcademicEventOverride

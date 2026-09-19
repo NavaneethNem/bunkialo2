@@ -29,6 +29,8 @@ type AppEnv = {
 };
 
 const SESSION_COOKIE = "__Host-bunkialo-session";
+const GOOGLE_CALENDAR_ICS_URL =
+  "https://calendar.google.com/calendar/ical/c_6924fc2085f9177ac3c9719e1db5188a11bb7461cae26d03757a1db670a649ae%40group.calendar.google.com/public/basic.ics";
 
 const isDesktopPairingCode = (value: unknown): value is DesktopPairingCode => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -95,6 +97,22 @@ app.use("/api/*", async (context, next) => {
 app.get("/api/health", (context) =>
   context.json({ ok: true, service: "bunkialo" }),
 );
+
+app.get("/api/academic-calendar/club-events", async (context) => {
+  const response = await fetch(GOOGLE_CALENDAR_ICS_URL, {
+    headers: { Accept: "text/calendar" },
+  });
+  if (!response.ok) {
+    return context.json(
+      { error: `Google Calendar feed failed (${response.status}).` },
+      502,
+    );
+  }
+  return new Response(await response.text(), {
+    headers: { "Content-Type": "text/calendar; charset=utf-8" },
+    status: 200,
+  });
+});
 
 app.post("/api/auth/lms/login", async (context) => {
   const request = lmsLoginSchema.safeParse(await readJson(context.req.raw));

@@ -9,6 +9,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { AcademicEvent } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
+import { Linking } from "react-native";
 
 type AcademicEventCardProps = {
   event: AcademicEvent;
@@ -27,6 +28,24 @@ const formatRelativeDate = (date: string): string => {
   return `${Math.abs(days)}d ago`;
 };
 
+const formatClock = (value: string): string =>
+  new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(value));
+
+const formatTimedEvent = (event: AcademicEvent): string | null => {
+  if (!event.startAt || event.allDay) return null;
+  const end = event.endAt ? new Date(event.endAt) : null;
+  const time = end
+    ? `${formatClock(event.startAt)} - ${formatClock(event.endAt ?? event.startAt)}`
+    : formatClock(event.startAt);
+
+  if (!event.endDate) return time;
+  return `${formatRange(event)} • ${time}`;
+};
+
 export const AcademicEventCard = ({
   event,
   onPress,
@@ -36,10 +55,24 @@ export const AcademicEventCard = ({
   const theme = isDark ? Colors.dark : Colors.light;
   const meta = CATEGORY_META[event.category];
   const hasDateRange = event.endDate !== undefined && event.endDate !== event.date;
+  const timeText = event.origin === "google-calendar"
+    ? formatTimedEvent(event)
+    : hasDateRange
+      ? formatRange(event)
+      : null;
+  const openCalendar = async (): Promise<void> => {
+    if (!event.calendarUrl) {
+      onPress();
+      return;
+    }
+    if (await Linking.canOpenURL(event.calendarUrl)) {
+      await Linking.openURL(event.calendarUrl);
+    }
+  };
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => void openCalendar()}
       className="gap-3 rounded-2xl border p-4"
       style={({ pressed }) => ({
         backgroundColor: pressed
@@ -87,32 +120,48 @@ export const AcademicEventCard = ({
       </Text>
 
       <View
-        className={
-          hasDateRange
-            ? "mt-1 flex-row items-center justify-between gap-3"
-            : "mt-1 flex-row justify-end"
-        }
+        className="mt-1 flex-row items-end justify-between gap-3"
       >
-        {hasDateRange && (
-          <View className="flex-1 flex-row items-center gap-1.5">
-            <Ionicons
-              name="time-outline"
-              size={14}
-              color={theme.textSecondary}
-            />
-            <Text
-              className="text-[13px] font-medium"
-              style={{ color: theme.textSecondary }}
-              numberOfLines={1}
-            >
-              {formatRange(event)}
-              {event.isTentative ? " • Tentative" : ""}
-            </Text>
+        {(timeText || event.location) && (
+          <View className="flex-1 gap-1.5">
+            {timeText && (
+              <View className="flex-row items-center gap-1.5">
+                <Ionicons
+                  name="time-outline"
+                  size={14}
+                  color={theme.textSecondary}
+                />
+                <Text
+                  className="text-[13px] font-medium"
+                  style={{ color: theme.textSecondary }}
+                  numberOfLines={1}
+                >
+                  {timeText}
+                  {event.isTentative ? " • Tentative" : ""}
+                </Text>
+              </View>
+            )}
+            {event.location && (
+              <View className="flex-row items-center gap-1.5">
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={theme.textSecondary}
+                />
+                <Text
+                  className="text-[13px] font-medium"
+                  style={{ color: theme.textSecondary }}
+                  numberOfLines={1}
+                >
+                  {event.location}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
         <Pressable
-          className="rounded-full border px-3 py-1.5"
+          className="ml-auto rounded-full border px-3 py-1.5"
           style={({ pressed }) => ({
             backgroundColor: pressed
               ? isDark
@@ -125,7 +174,7 @@ export const AcademicEventCard = ({
           })}
           onPress={(pressedEvent) => {
             pressedEvent.stopPropagation();
-            onPress();
+            void openCalendar();
           }}
         >
           <View className="flex-row items-center gap-1.5">

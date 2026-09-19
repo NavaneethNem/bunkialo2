@@ -7,6 +7,7 @@ import { AcademicEventCard } from "@/components/dashboard/academic-event-card";
 import { Colors } from "@/constants/theme";
 import { ACADEMIC_EVENTS } from "@/data/acad-cal";
 import { useAcademicCalendarStore } from "@/stores/academic-calendar-store";
+import { useAcademicCalendarFeedStore } from "@/stores/academic-calendar-feed-store";
 import type {
   AcademicEvent,
   AcademicEventOverride,
@@ -93,10 +94,11 @@ export const TimelineSection = ({ events }: TimelineSectionProps) => {
   const isDark = colorScheme === "dark";
   const theme = isDark ? Colors.dark : Colors.light;
   const { overrides, customEvents } = useAcademicCalendarStore();
+  const googleEvents = useAcademicCalendarFeedStore((state) => state.googleEvents);
   const windowStart = toISODate(new Date());
   const academicEvents = getAcademicEventsForDashboard(
     overrides,
-    customEvents,
+    [...customEvents, ...googleEvents],
     windowStart,
   );
 
