@@ -276,18 +276,6 @@ export default function DashboardScreen() {
 
   const fabActions = [
     {
-      icon: "wifi",
-      label: "WiFix",
-      color: theme.text,
-      style: { backgroundColor: theme.backgroundSecondary },
-      labelStyle: actionLabelStyle,
-      containerStyle: actionContainerStyle,
-      onPress: () => {
-        setShowFabMenu(false);
-        router.push("/wifix");
-      },
-    },
-    {
       icon: "calculator-variant",
       label: "GPA Calculator",
       color: theme.text,
@@ -297,6 +285,18 @@ export default function DashboardScreen() {
       onPress: () => {
         setShowFabMenu(false);
         router.push("/gpa");
+      },
+    },
+    {
+      icon: "calendar-account",
+      label: "Attendance",
+      color: theme.text,
+      style: { backgroundColor: theme.backgroundSecondary },
+      labelStyle: actionLabelStyle,
+      containerStyle: actionContainerStyle,
+      onPress: () => {
+        setShowFabMenu(false);
+        Linking.openURL("https://attendance.iiitkottayam.ac.in/");
       },
     },
     ...(isOldBatch
@@ -378,18 +378,6 @@ export default function DashboardScreen() {
             },
           },
         ]),
-    {
-      icon: "calendar-month",
-      label: "Academic Calendar",
-      color: theme.text,
-      style: { backgroundColor: theme.backgroundSecondary },
-      labelStyle: actionLabelStyle,
-      containerStyle: actionContainerStyle,
-      onPress: () => {
-        setShowFabMenu(false);
-        router.push("/acad-cal");
-      },
-    },
   ];
 
   return (
