@@ -430,16 +430,8 @@ export default function DashboardScreen() {
 
   return (
     <Container>
-      <ScrollView
-        contentContainerClassName="p-4 pb-14"
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={handleRefresh}
-            tintColor={theme.text}
-          />
-        }
-      >
+      <View className="flex-1">
+        <View className="px-4 pt-4">
         {/* Header */}
         <View className="mb-5 flex-row items-start justify-between">
           <View className="shrink gap-1">
@@ -572,19 +564,36 @@ export default function DashboardScreen() {
           </View>
         )}
 
+        {!isHydratingFromCache && (
+          <Text
+            className="mb-4 mt-4 text-lg font-bold tracking-tight"
+            style={{ color: theme.text }}
+          >
+            Upcoming
+          </Text>
+        )}
+
+        </View>
+
         {/* Upcoming Timeline */}
         {!isHydratingFromCache && (
-          <View className="mb-6">
-            <Text
-              className="mb-4 text-lg font-bold tracking-tight"
-              style={{ color: theme.text }}
-            >
-              Upcoming
-            </Text>
-            <TimelineSection events={upcomingEvents} />
-          </View>
+          <ScrollView
+            className="min-h-0 flex-1"
+            contentContainerClassName="px-4 pb-14"
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading}
+                onRefresh={handleRefresh}
+                tintColor={theme.text}
+              />
+            }
+          >
+            <View className="mb-6">
+              <TimelineSection events={upcomingEvents} />
+            </View>
+          </ScrollView>
         )}
-      </ScrollView>
+      </View>
 
       {isFocused && (
         <Portal>

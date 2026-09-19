@@ -53,6 +53,7 @@ export const AcademicEventCard = ({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const theme = isDark ? Colors.dark : Colors.light;
+  const cardBorder = isDark ? Colors.gray[600] : theme.border;
   const meta = CATEGORY_META[event.category];
   const hasDateRange = event.endDate !== undefined && event.endDate !== event.date;
   const timeText = event.origin === "google-calendar"
@@ -80,7 +81,7 @@ export const AcademicEventCard = ({
             ? Colors.gray[800]
             : Colors.gray[100]
           : theme.backgroundSecondary,
-        borderColor: theme.border,
+        borderColor: cardBorder,
         borderLeftWidth: 2,
         borderLeftColor: meta.color,
       })}
@@ -170,7 +171,7 @@ export const AcademicEventCard = ({
               : isDark
                 ? Colors.gray[900]
                 : Colors.gray[50],
-            borderColor: theme.border,
+            borderColor: cardBorder,
           })}
           onPress={(pressedEvent) => {
             pressedEvent.stopPropagation();

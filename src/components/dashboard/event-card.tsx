@@ -88,6 +88,7 @@ export const EventCard = ({ event, isOverdue }: EventCardProps) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const theme = isDark ? Colors.dark : Colors.light;
+  const cardBorder = isDark ? Colors.gray[600] : theme.border;
   const [nowMs, setNowMs] = useState(Date.now());
   const [showPreciseCountdown, setShowPreciseCountdown] = useState(false);
   const bunkCourses = useBunkStore((state) => state.courses);
@@ -172,7 +173,7 @@ export const EventCard = ({ event, isOverdue }: EventCardProps) => {
       className="gap-3 rounded-2xl border p-4"
       style={{
         backgroundColor: theme.backgroundSecondary,
-        borderColor: isPastDue ? Colors.status.danger : theme.border,
+        borderColor: isPastDue ? Colors.status.danger : cardBorder,
         borderLeftWidth: 2,
         borderLeftColor: isPastDue ? Colors.status.danger : courseColor,
       }}
@@ -255,7 +256,7 @@ export const EventCard = ({ event, isOverdue }: EventCardProps) => {
               : isDark
                 ? Colors.gray[900]
                 : Colors.gray[50],
-            borderColor: isPastDue ? Colors.status.danger + "66" : theme.border,
+            borderColor: isPastDue ? Colors.status.danger + "66" : cardBorder,
           })}
           onPress={(pressedEvent) => {
             pressedEvent.stopPropagation();
