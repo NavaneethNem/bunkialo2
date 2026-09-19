@@ -179,7 +179,7 @@ export const AcademicEventCard = ({
         >
           <View className="flex-row items-center gap-1.5">
             <Text className="text-xs font-semibold" style={{ color: theme.text }}>
-              Open Calendar
+              Calendar
             </Text>
             <Ionicons name="open-outline" size={12} color={theme.textSecondary} />
           </View>

@@ -267,7 +267,7 @@ export const EventCard = ({ event, isOverdue }: EventCardProps) => {
               className="text-xs font-semibold"
               style={{ color: theme.text }}
             >
-              Open LMS
+              LMS
             </Text>
             <Ionicons
               name="open-outline"
