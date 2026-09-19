@@ -35,6 +35,7 @@ export const AcademicEventCard = ({
   const isDark = colorScheme === "dark";
   const theme = isDark ? Colors.dark : Colors.light;
   const meta = CATEGORY_META[event.category];
+  const hasDateRange = event.endDate !== undefined && event.endDate !== event.date;
 
   return (
     <Pressable
@@ -85,18 +86,30 @@ export const AcademicEventCard = ({
         {event.title}
       </Text>
 
-      <View className="mt-1 flex-row items-center justify-between gap-3">
-        <View className="flex-1 flex-row items-center gap-1.5">
-          <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
-          <Text
-            className="text-[13px] font-medium"
-            style={{ color: theme.textSecondary }}
-            numberOfLines={1}
-          >
-            {formatRange(event)}
-            {event.isTentative ? " • Tentative" : ""}
-          </Text>
-        </View>
+      <View
+        className={
+          hasDateRange
+            ? "mt-1 flex-row items-center justify-between gap-3"
+            : "mt-1 flex-row justify-end"
+        }
+      >
+        {hasDateRange && (
+          <View className="flex-1 flex-row items-center gap-1.5">
+            <Ionicons
+              name="time-outline"
+              size={14}
+              color={theme.textSecondary}
+            />
+            <Text
+              className="text-[13px] font-medium"
+              style={{ color: theme.textSecondary }}
+              numberOfLines={1}
+            >
+              {formatRange(event)}
+              {event.isTentative ? " • Tentative" : ""}
+            </Text>
+          </View>
+        )}
 
         <Pressable
           className="rounded-full border px-3 py-1.5"
