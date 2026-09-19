@@ -1,4 +1,9 @@
-import { CATEGORY_META, formatRange } from "@/components/acad-cal/constants";
+import {
+  CATEGORY_META,
+  formatRange,
+  parseISODate,
+  toISODate,
+} from "@/components/acad-cal/constants";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { AcademicEvent } from "@/types";
@@ -8,6 +13,18 @@ import { Pressable, Text, View } from "react-native";
 type AcademicEventCardProps = {
   event: AcademicEvent;
   onPress: () => void;
+};
+
+const formatRelativeDate = (date: string): string => {
+  const today = parseISODate(toISODate(new Date()));
+  const eventDate = parseISODate(date);
+  const days = Math.round(
+    (eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (days === 0) return "today";
+  if (days > 0) return `in ${days}d`;
+  return `${Math.abs(days)}d ago`;
 };
 
 export const AcademicEventCard = ({
@@ -49,15 +66,12 @@ export const AcademicEventCard = ({
           >
             {meta.label}
           </Text>
-          <View
-            className="rounded-full px-2.5 py-1"
-            style={{ backgroundColor: meta.color + "22" }}
-          >
+          <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: meta.color + "22" }}>
             <Text
               className="text-[11px] font-bold"
               style={{ color: meta.color, letterSpacing: 0.25 }}
             >
-              {meta.label}
+              {formatRelativeDate(event.date)}
             </Text>
           </View>
         </View>
