@@ -357,14 +357,14 @@ export const ACADEMIC_EVENTS: AcademicEvent[] = [
   createEvent(
     "odd-milad-un-nabi",
     "Milad un Nabi / Id-e-Milad",
-    "2026-09-25",
+    "2026-08-25",
     "holiday",
     ODD,
   ),
   createEvent(
     "odd-onam",
     "Onam / Thiruvonam Day",
-    "2026-09-26",
+    "2026-08-26",
     "holiday",
     ODD,
   ),
