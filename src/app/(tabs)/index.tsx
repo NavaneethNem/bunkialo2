@@ -17,6 +17,7 @@ import { useLmsResourcesStore } from "@/stores/lms-resources-store";
 import { useAcademicCalendarFeedStore } from "@/stores/academic-calendar-feed-store";
 import { usePopupStore } from "@/stores/popup-store";
 import { useSettingsStore } from "@/stores/settings-store";
+import { syncDashboardNotifications } from "@/services/dashboard-notifications";
 import { initializeNotifications } from "@/utils/notifications";
 import { syncPortalNotifications } from "@/services/attendance/portal-notification-sync";
 import { usePortalNotificationStore } from "@/stores/portal-notification-store";
@@ -114,7 +115,23 @@ export default function DashboardScreen() {
     hasFetchedAcademicCalendar.current = true;
 
     const task = InteractionManager.runAfterInteractions(() => {
-      void fetchAcademicCalendarEvents();
+      void (async () => {
+        await fetchAcademicCalendarEvents();
+        await initializeNotifications();
+
+        const settings = useSettingsStore.getState();
+        const academicEvents = useAcademicCalendarFeedStore.getState().googleEvents;
+        const dashboard = useDashboardStore.getState();
+        await syncDashboardNotifications({
+          academicEvents,
+          notificationsEnabled: settings.notificationsEnabled,
+          reminderMinutes: settings.reminders,
+          source: "foreground",
+          upcomingEvents: dashboard.upcomingEvents,
+        });
+      })().catch((error: unknown) => {
+        console.warn("Failed to schedule academic calendar notifications", error);
+      });
     });
 
     return () => task.cancel();

@@ -47,7 +47,7 @@ const getStatusLabel = (
   campusPortalAvailable: boolean,
 ): string => {
   if (status === "error") return "WiFix could not connect";
-  if (!campusPortalAvailable) return "Not in IIIT Kottayam WiFi";
+  if (!campusPortalAvailable) return "Not in campus WiFi";
   if (status === "online") return "Connected to campus WiFi";
   if (status === "captive") return "Campus WiFi · Login required";
   return "Not connected";

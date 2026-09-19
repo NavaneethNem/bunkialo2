@@ -1,4 +1,5 @@
 import { useSettingsStore } from "@/stores/settings-store";
+import { useAcademicCalendarFeedStore } from "@/stores/academic-calendar-feed-store";
 import type { TimelineEvent } from "@/types";
 import { tryAutoLogin } from "./auth/lms-auth";
 import { syncDashboardNotifications } from "./dashboard-notifications";
@@ -25,8 +26,10 @@ export const runDashboardSync = async ({
 
   const { upcoming, overdue } = await fetchDashboardEvents();
   const settings = useSettingsStore.getState();
+  const academicEvents = useAcademicCalendarFeedStore.getState().googleEvents;
 
   const { newUpcomingEvents } = await syncDashboardNotifications({
+    academicEvents,
     notificationsEnabled: settings.notificationsEnabled,
     reminderMinutes: settings.reminders,
     source,

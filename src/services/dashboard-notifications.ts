@@ -3,7 +3,7 @@ import {
   DASHBOARD_NOTIFICATION_STORAGE_KEY,
   LEGACY_DASHBOARD_NOTIFICATION_STORAGE_KEY,
 } from "@/constants/dashboard";
-import type { TimelineEvent } from "@/types";
+import type { AcademicEvent, TimelineEvent } from "@/types";
 import {
   cancelNotificationRequests,
   ensureNotificationChannels,
@@ -25,10 +25,20 @@ type DashboardNotificationState = {
 };
 
 type SyncDashboardNotificationsParams = {
+  academicEvents?: AcademicEvent[];
   notificationsEnabled: boolean;
   reminderMinutes: number[];
   source: DashboardSyncSource;
   upcomingEvents: TimelineEvent[];
+};
+
+type ReminderEvent = {
+  body: (minutesBefore: number) => string;
+  data: Record<string, unknown>;
+  id: string;
+  startAt: number;
+  title: string;
+  type: "academic-calendar-reminder" | "dashboard-reminder";
 };
 
 const EMPTY_NOTIFICATION_STATE: DashboardNotificationState = {
@@ -40,9 +50,47 @@ let legacyMigrationPromise: Promise<void> | null = null;
 let notificationSyncQueue: Promise<void> = Promise.resolve();
 
 const getReminderSignature = (
-  event: TimelineEvent,
+  event: ReminderEvent,
   minutesBefore: number,
-): string => `${getTimelineEventSignature(event)}:${minutesBefore}`;
+): string => `${event.type}:${event.id}:${event.startAt}:${minutesBefore}`;
+
+const toReminderEvents = (
+  upcomingEvents: TimelineEvent[],
+  academicEvents: AcademicEvent[],
+): ReminderEvent[] => [
+  ...dedupeTimelineEvents(upcomingEvents).map((event) => ({
+    body: (minutesBefore: number) =>
+      `Due in ${minutesBefore} minutes - ${event.course.shortname}`,
+    data: {
+      eventId: event.id,
+      type: "dashboard-reminder",
+      url: event.url,
+    },
+    id: `${event.id}`,
+    startAt: event.timesort * 1000,
+    title: event.activityname,
+    type: "dashboard-reminder" as const,
+  })),
+  ...academicEvents.flatMap((event) => {
+    if (event.origin !== "google-calendar" || !event.startAt) return [];
+    const startAt = Date.parse(event.startAt);
+    if (!Number.isFinite(startAt)) return [];
+
+    return [{
+      body: (minutesBefore: number) =>
+        `Starts in ${minutesBefore} minutes${event.location ? ` - ${event.location}` : ""}`,
+      data: {
+        calendarUrl: event.calendarUrl,
+        eventId: event.id,
+        type: "academic-calendar-reminder",
+      },
+      id: event.id,
+      startAt,
+      title: event.title,
+      type: "academic-calendar-reminder" as const,
+    }];
+  }),
+];
 
 const migrateLegacyDashboardNotificationState = async (): Promise<void> => {
   const legacyRaw = await zustandStorage.getItem(
@@ -141,10 +189,10 @@ const buildNewUpcomingNotification = (
 };
 
 const isFutureReminder = (
-  event: TimelineEvent,
+  event: ReminderEvent,
   minutesBefore: number,
 ): boolean => {
-  const scheduledAt = event.timesort * 1000 - minutesBefore * 60 * 1000;
+  const scheduledAt = event.startAt - minutesBefore * 60 * 1000;
   return scheduledAt > Date.now();
 };
 
@@ -161,7 +209,7 @@ const cancelReminderMap = async (
 
 const buildReminderNotifications = async (
   previousReminderIds: Record<string, string>,
-  upcomingEvents: TimelineEvent[],
+  reminderEvents: ReminderEvent[],
   reminderMinutes: number[],
 ): Promise<Record<string, string>> => {
   const scheduledReminderIds: Record<string, string> = {};
@@ -169,13 +217,13 @@ const buildReminderNotifications = async (
     new Set(reminderMinutes.filter((minutes) => minutes > 0)),
   ).sort((a, b) => b - a);
 
-  for (const event of upcomingEvents) {
+  for (const event of reminderEvents) {
     for (const minutesBefore of uniqueReminderMinutes) {
       if (!isFutureReminder(event, minutesBefore)) {
         continue;
       }
 
-      const scheduledAt = event.timesort * 1000 - minutesBefore * 60 * 1000;
+      const scheduledAt = event.startAt - minutesBefore * 60 * 1000;
 
       const reminderSignature = getReminderSignature(event, minutesBefore);
       const existingNotificationId = previousReminderIds[reminderSignature];
@@ -186,16 +234,11 @@ const buildReminderNotifications = async (
       }
 
       const notificationId = await scheduleDateNotification({
-        body: `Due in ${minutesBefore} minutes - ${event.course.shortname}`,
+        body: event.body(minutesBefore),
         channelId: DASHBOARD_NOTIFICATION_CHANNELS.reminders,
-        data: {
-          eventId: event.id,
-          reminderMinutes: minutesBefore,
-          type: "dashboard-reminder",
-          url: event.url,
-        },
+        data: { ...event.data, reminderMinutes: minutesBefore },
         date: scheduledAt,
-        title: event.activityname,
+        title: event.title,
       });
 
       scheduledReminderIds[reminderSignature] = notificationId;
@@ -214,6 +257,7 @@ export const clearDashboardNotificationState = async (): Promise<void> => {
 };
 
 const runDashboardNotificationsSync = async ({
+  academicEvents = [],
   notificationsEnabled,
   reminderMinutes,
   source,
@@ -222,6 +266,7 @@ const runDashboardNotificationsSync = async ({
   newUpcomingEvents: TimelineEvent[];
 }> => {
   const dedupedUpcomingEvents = dedupeTimelineEvents(upcomingEvents);
+  const reminderEvents = toReminderEvents(dedupedUpcomingEvents, academicEvents);
   const previousState = await loadDashboardNotificationState();
   const previousSignatures = new Set(previousState.seenUpcomingSignatures);
   const currentSignatures = new Set(
@@ -265,7 +310,7 @@ const runDashboardNotificationsSync = async ({
   ]);
 
   const nextReminderKeys = new Set(
-    dedupedUpcomingEvents.flatMap((event) =>
+    reminderEvents.flatMap((event) =>
       reminderMinutes
         .filter((minutes) => minutes > 0 && isFutureReminder(event, minutes))
         .map((minutesBefore) => getReminderSignature(event, minutesBefore)),
@@ -281,7 +326,7 @@ const runDashboardNotificationsSync = async ({
 
   const scheduledReminderIds = await buildReminderNotifications(
     previousState.scheduledReminderIds,
-    dedupedUpcomingEvents,
+    reminderEvents,
     reminderMinutes,
   );
 

@@ -9,6 +9,7 @@ import { portalNotificationsSchema } from "@/services/attendance/attendance-sche
 import { parseCoursesPayload } from "@/services/lms-courses";
 import { useAttendanceStore } from "@/stores/attendance-store";
 import { useDashboardStore } from "@/stores/dashboard-store";
+import { useAcademicCalendarFeedStore } from "@/stores/academic-calendar-feed-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { CourseAttendance, PortalNotificationPage } from "@/types";
 import { getErrorMessage } from "@/utils/error-details";
@@ -79,7 +80,9 @@ export const syncAppData = async (options?: {
 
     const { overdue, upcoming } = parseDashboardPayload(payload.lms.timeline);
     const settings = useSettingsStore.getState();
+    const academicEvents = useAcademicCalendarFeedStore.getState().googleEvents;
     await syncDashboardNotifications({
+      academicEvents,
       notificationsEnabled: settings.notificationsEnabled,
       reminderMinutes: settings.reminders,
       source,
