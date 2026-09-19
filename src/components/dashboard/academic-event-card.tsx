@@ -47,7 +47,7 @@ export const AcademicEventCard = ({
             style={{ color: theme.text }}
             numberOfLines={1}
           >
-            Academic Calendar
+            {meta.label}
           </Text>
           <View
             className="rounded-full px-2.5 py-1"
