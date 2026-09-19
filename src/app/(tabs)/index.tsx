@@ -505,6 +505,19 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        </View>
+
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="px-4 pb-14"
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={handleRefresh}
+              tintColor={theme.text}
+            />
+          }
+        >
         {/* Up Next Section */}
         <UpNextSection />
 
@@ -573,26 +586,13 @@ export default function DashboardScreen() {
           </Text>
         )}
 
-        </View>
-
         {/* Upcoming Timeline */}
         {!isHydratingFromCache && (
-          <ScrollView
-            className="min-h-0 flex-1"
-            contentContainerClassName="px-4 pb-14"
-            refreshControl={
-              <RefreshControl
-                refreshing={isLoading}
-                onRefresh={handleRefresh}
-                tintColor={theme.text}
-              />
-            }
-          >
-            <View className="mb-6">
-              <TimelineSection events={upcomingEvents} />
-            </View>
-          </ScrollView>
+          <View className="mb-6">
+            <TimelineSection events={upcomingEvents} />
+          </View>
         )}
+        </ScrollView>
       </View>
 
       {isFocused && (
