@@ -1,5 +1,4 @@
 import { startBackgroundRefresh } from "@/background/dashboard-background";
-import { AcademicEventsSection } from "@/components/dashboard/academic-events-section";
 import { EventCard } from "@/components/dashboard/event-card";
 import { NoticesModal } from "@/components/dashboard/notices-modal";
 import { NoticePopup } from "@/components/dashboard/popup/notice-popup";
@@ -547,7 +546,6 @@ export default function DashboardScreen() {
               Upcoming
             </Text>
             <TimelineSection events={upcomingEvents} />
-            <AcademicEventsSection />
           </View>
         )}
       </ScrollView>

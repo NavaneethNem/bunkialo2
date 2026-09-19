@@ -1,6 +1,20 @@
+import {
+  addDays,
+  parseISODate,
+  toISODate,
+} from "@/components/acad-cal/constants";
+import { AcademicEventCard } from "@/components/dashboard/academic-event-card";
 import { Colors } from "@/constants/theme";
+import { ACADEMIC_EVENTS } from "@/data/acad-cal";
+import { useAcademicCalendarStore } from "@/stores/academic-calendar-store";
+import type {
+  AcademicEvent,
+  AcademicEventOverride,
+  TimelineEvent,
+} from "@/types";
+import { getAcademicEventsForWindow } from "@/utils/academic-calendar-window";
+import { router } from "expo-router";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import type { TimelineEvent } from "@/types";
 import { Text, View } from "react-native";
 import { EventCard } from "./event-card";
 
@@ -8,8 +22,44 @@ type TimelineSectionProps = {
   events: TimelineEvent[];
 };
 
-const groupByDate = (events: TimelineEvent[]): Map<string, TimelineEvent[]> => {
-  const groups = new Map<string, TimelineEvent[]>();
+type TimelineItem =
+  | { kind: "lms"; event: TimelineEvent }
+  | { kind: "academic"; event: AcademicEvent };
+
+const mergeBaseEvent = (
+  event: AcademicEvent,
+  override: AcademicEventOverride | undefined,
+): AcademicEvent | null => {
+  if (override?.hidden) return null;
+
+  const { hidden: _hidden, ...eventOverride } = override ?? {};
+  return { ...event, ...eventOverride };
+};
+
+const getAcademicEventsForDashboard = (
+  overrides: Record<string, AcademicEventOverride>,
+  customEvents: AcademicEvent[],
+  startDate: string,
+): AcademicEvent[] => {
+  const endDate = toISODate(addDays(parseISODate(startDate), 6));
+  const baseEvents = ACADEMIC_EVENTS.flatMap((event) => {
+    const merged = mergeBaseEvent(event, overrides[event.id]);
+    return merged ? [merged] : [];
+  });
+
+  return getAcademicEventsForWindow(
+    [...baseEvents, ...customEvents],
+    startDate,
+    endDate,
+  );
+};
+
+const groupByDate = (
+  events: TimelineEvent[],
+  academicEvents: AcademicEvent[],
+  windowStart: string,
+): Map<string, TimelineItem[]> => {
+  const groups = new Map<string, TimelineItem[]>();
 
   events.forEach((event) => {
     const date = new Date(event.timesort * 1000);
@@ -19,7 +69,13 @@ const groupByDate = (events: TimelineEvent[]): Map<string, TimelineEvent[]> => {
     const key = `${year}-${month}-${day}`;
 
     const existing = groups.get(key) || [];
-    groups.set(key, [...existing, event]);
+    groups.set(key, [...existing, { kind: "lms", event }]);
+  });
+
+  academicEvents.forEach((event) => {
+    const date = event.date < windowStart ? windowStart : event.date;
+    const existing = groups.get(date) || [];
+    groups.set(date, [...existing, { kind: "academic", event }]);
   });
 
   return groups;
@@ -36,10 +92,20 @@ export const TimelineSection = ({ events }: TimelineSectionProps) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const theme = isDark ? Colors.dark : Colors.light;
+  const { overrides, customEvents } = useAcademicCalendarStore();
+  const windowStart = toISODate(new Date());
+  const academicEvents = getAcademicEventsForDashboard(
+    overrides,
+    customEvents,
+    windowStart,
+  );
 
-  const grouped = groupByDate(events);
+  const grouped = groupByDate(events, academicEvents, windowStart);
+  const groupedEntries = Array.from(grouped.entries()).sort(([first], [second]) =>
+    first.localeCompare(second),
+  );
 
-  if (events.length === 0) {
+  if (groupedEntries.length === 0) {
     return (
       <View className="items-center py-8">
         <Text className="text-sm" style={{ color: theme.textSecondary }}>
@@ -51,7 +117,7 @@ export const TimelineSection = ({ events }: TimelineSectionProps) => {
 
   return (
     <View className="gap-6">
-      {Array.from(grouped.entries()).map(([date, dateEvents]) => (
+      {groupedEntries.map(([date, dateEvents]) => (
         <View key={date} className="gap-3">
           <View className="flex-row items-center gap-3">
             <View
@@ -68,9 +134,17 @@ export const TimelineSection = ({ events }: TimelineSectionProps) => {
               style={{ backgroundColor: theme.border }}
             />
             <View className="flex-1 gap-3">
-              {dateEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
+              {dateEvents.map((item) =>
+                item.kind === "lms" ? (
+                  <EventCard key={item.event.id} event={item.event} />
+                ) : (
+                  <AcademicEventCard
+                    key={item.event.id}
+                    event={item.event}
+                    onPress={() => router.push("/acad-cal")}
+                  />
+                ),
+              )}
             </View>
           </View>
         </View>
