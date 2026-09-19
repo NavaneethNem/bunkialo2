@@ -5,9 +5,11 @@ import {
   checkConnectivity,
   getDefaultPortalBaseUrl,
   getPortalBaseUrl,
+  isRecognizedCampusPortal,
   loginToCaptivePortal,
   logoutFromCaptivePortal,
   resolvePortalSelection,
+  verifyPortalLogin,
 } from "@/services/wifix";
 import { useWifixStore } from "@/stores/wifix-store";
 import type { WifixConnectionState, WifixConnectivityResult } from "@/types";
@@ -28,15 +30,25 @@ interface WifixQuickActionProps {
   theme: typeof Colors.light;
 }
 
-type WifixAction = "check" | "login" | "logout";
+type WifixAction = "startup" | "check" | "login" | "logout";
+type WifixPhase = "checking" | "auto-login" | "login" | "verifying" | "logout" | null;
+
+const getPhaseLabel = (phase: WifixPhase): string | null => {
+  if (phase === "checking") return "Checking campus WiFi...";
+  if (phase === "auto-login") return "Auto login in progress...";
+  if (phase === "login") return "Logging in...";
+  if (phase === "verifying") return "Verifying internet access...";
+  if (phase === "logout") return "Logging out...";
+  return null;
+};
 
 const getStatusLabel = (
   status: WifixConnectionState,
   campusPortalAvailable: boolean,
 ): string => {
-  if (status === "checking") return "Checking campus WiFi...";
+  if (status === "error") return "WiFix could not connect";
   if (!campusPortalAvailable) return "Not in IIIT Kottayam WiFi";
-  if (status === "online") return "Connected";
+  if (status === "online") return "Connected to campus WiFi";
   if (status === "captive") return "Campus WiFi · Login required";
   return "Not connected";
 };
@@ -45,28 +57,31 @@ const getStatusColor = (
   status: WifixConnectionState,
   campusPortalAvailable: boolean,
 ): string => {
+  if (status === "error") return Colors.status.danger;
   if (!campusPortalAvailable) return Colors.gray[400];
   if (status === "online") return Colors.status.success;
   if (status === "captive") return Colors.status.warning;
-  if (status === "error" || status === "offline") return Colors.status.danger;
+  if (status === "offline") return Colors.status.danger;
   return Colors.status.info;
 };
 
 export function WifixQuickAction({ theme }: WifixQuickActionProps) {
   const isWeb = Platform.OS === "web";
   const {
+    autoReconnectEnabled,
     portalBaseUrl: storedPortalBaseUrl,
     manualPortalUrl,
     portalSource,
     setPortalBaseUrl,
   } = useWifixStore();
+  const [settingsReady, setSettingsReady] = useState(
+    useWifixStore.persist.hasHydrated(),
+  );
   const [status, setStatus] = useState<WifixConnectionState>("idle");
   const [campusPortalAvailable, setCampusPortalAvailable] = useState(false);
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
-  const [portalBaseUrl, setPortalBaseUrlLocal] = useState<string | null>(
-    storedPortalBaseUrl,
-  );
-  const [isBusy, setIsBusy] = useState(false);
+  const [phase, setPhase] = useState<WifixPhase>("checking");
+  const [message, setMessage] = useState<string | null>(null);
   const inFlightRef = useRef(false);
 
   const resolvedSelection = useMemo(
@@ -86,13 +101,11 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
 
   const syncPortalBaseUrl = useCallback(
     (nextBaseUrl: string | null) => {
-      if (!nextBaseUrl) return;
-      setPortalBaseUrlLocal(nextBaseUrl);
-      if (nextBaseUrl !== storedPortalBaseUrl) {
+      if (nextBaseUrl && nextBaseUrl !== useWifixStore.getState().portalBaseUrl) {
         setPortalBaseUrl(nextBaseUrl);
       }
     },
-    [setPortalBaseUrl, storedPortalBaseUrl],
+    [setPortalBaseUrl],
   );
 
   const applyConnectivity = useCallback((result: WifixConnectivityResult) => {
@@ -105,8 +118,8 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
     async (action: WifixAction) => {
       if (isWeb || inFlightRef.current) return;
       inFlightRef.current = true;
-      setIsBusy(true);
-      setStatus("checking");
+      setPhase("checking");
+      setMessage(null);
 
       try {
         const connectivity = await checkConnectivity();
@@ -121,13 +134,26 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
           selection.portalBaseUrl ?? connectivity.portalBaseUrl,
         );
 
-        if (action === "check") return;
+        const shouldAutoLogin =
+          action === "startup" &&
+          autoReconnectEnabled &&
+          isRecognizedCampusPortal(connectivity);
+        if (action === "check" || (action === "startup" && !shouldAutoLogin)) {
+          if (connectivity.state === "offline") {
+            setMessage(connectivity.message ?? "Could not check WiFi connection");
+          }
+          return;
+        }
 
-        if (action === "login") {
-          if (connectivity.state !== "captive") return;
+        if (action === "login" || shouldAutoLogin) {
+          if (connectivity.state !== "captive" || !connectivity.campusPortalAvailable) {
+            setMessage("Campus login portal was not detected");
+            return;
+          }
+          setPhase(shouldAutoLogin ? "auto-login" : "login");
           const credentials = await getCredentials();
           if (!credentials) {
-            setStatus("error");
+            setMessage("Sign in to Bunkialo to save WiFi credentials");
             return;
           }
 
@@ -136,22 +162,28 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
             password: credentials.password,
             portalUrl: selection.portalUrl,
             portalBaseUrl:
-              selection.portalBaseUrl ?? storedPortalBaseUrl ?? portalBaseUrl,
+              selection.portalBaseUrl ?? storedPortalBaseUrl,
           });
           syncPortalBaseUrl(loginResult.portalBaseUrl);
           if (!loginResult.success) {
-            setStatus("error");
+            setStatus("captive");
+            setMessage(`Login failed: ${loginResult.message}`);
             wifixLogger.error(`Home WiFix login failed: ${loginResult.message}`);
             return;
           }
 
-          const verification = await checkConnectivity();
+          setPhase("verifying");
+          const verification = await verifyPortalLogin();
           applyConnectivity(verification);
           if (verification.state === "online") {
+            setMessage("Login verified · Internet is working");
             Toast.show("Logged in to campus WiFi", {
               type: "success",
               position: "top",
             });
+          } else {
+            setMessage("Login was sent, but internet access could not be verified. Try again.");
+            wifixLogger.error("Home WiFix login was not verified by connectivity check");
           }
           return;
         }
@@ -160,61 +192,70 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
           connectivity.state !== "online" ||
           !connectivity.campusPortalAvailable
         ) {
+          setMessage("Campus WiFi is not connected");
           return;
         }
 
+        setPhase("logout");
         const logoutResult = await logoutFromCaptivePortal({
           portalUrl: selection.portalUrl,
           portalBaseUrl:
-            selection.portalBaseUrl ?? storedPortalBaseUrl ?? portalBaseUrl,
+            selection.portalBaseUrl ?? storedPortalBaseUrl,
         });
         syncPortalBaseUrl(logoutResult.portalBaseUrl);
         if (!logoutResult.success) {
-          setStatus("error");
+          setMessage(`Logout failed: ${logoutResult.message}`);
           wifixLogger.error(`Home WiFix logout failed: ${logoutResult.message}`);
           return;
         }
 
         setStatus("captive");
         setCampusPortalAvailable(true);
+        setMessage("Logged out of campus WiFi");
         Toast.show("Logged out of campus WiFi", {
           type: "success",
           position: "top",
         });
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         setStatus("error");
-        wifixLogger.error(
-          `Home WiFix error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
+        setMessage(errorMessage);
+        wifixLogger.error(`Home WiFix error: ${errorMessage}`);
       } finally {
-        setIsBusy(false);
+        setPhase(null);
         inFlightRef.current = false;
       }
     },
     [
       applyConnectivity,
+      autoReconnectEnabled,
       isWeb,
       manualPortalUrl,
-      portalBaseUrl,
       portalSource,
       storedPortalBaseUrl,
       syncPortalBaseUrl,
     ],
   );
 
+  const runActionRef = useRef(runAction);
+  runActionRef.current = runAction;
+
   useEffect(() => {
-    if (isWeb) return;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    if (settingsReady) return;
+    if (useWifixStore.persist.hasHydrated()) {
+      setSettingsReady(true);
+      return;
+    }
+    return useWifixStore.persist.onFinishHydration(() => setSettingsReady(true));
+  }, [settingsReady]);
+
+  useEffect(() => {
+    if (isWeb || !settingsReady) return;
     const task = InteractionManager.runAfterInteractions(() => {
-      timeoutId = setTimeout(() => {
-        void runAction("check");
-      }, 0);
+      void runActionRef.current("startup");
     });
-    return () => {
-      task.cancel();
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [isWeb, runAction]);
+    return () => task.cancel();
+  }, [isWeb, settingsReady]);
 
   if (isWeb) return null;
 
@@ -237,63 +278,72 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
       : status === "offline" || status === "error"
         ? "Retry"
         : null;
-  const statusColor = getStatusColor(status, campusPortalAvailable);
+  const phaseLabel = getPhaseLabel(phase);
+  const statusColor = phase
+    ? Colors.status.info
+    : getStatusColor(status, campusPortalAvailable);
 
   return (
     <View
-      className="mb-5 flex-row items-center justify-between gap-3 rounded-2xl border px-4 py-3"
+      className="mb-5 rounded-2xl border px-4 py-3"
       style={{
         backgroundColor: theme.backgroundSecondary,
         borderColor: theme.border,
       }}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Open WiFix"
-        onPress={() => router.push("/wifix")}
-        className="min-w-0 flex-1 flex-row items-center gap-2"
-      >
-        <Ionicons
-          name={status === "online" ? "checkmark-circle" : "wifi-outline"}
-          size={18}
-          color={statusColor}
-        />
-        <Text
-          className="shrink text-sm font-medium"
-          style={{ color: theme.text }}
-          numberOfLines={1}
-        >
-          {getStatusLabel(status, campusPortalAvailable)}
-        </Text>
-      </Pressable>
-      {actionLabel && (
+      <View className="flex-row items-center justify-between gap-3">
         <Pressable
-          onPress={() => void runAction(action)}
-          disabled={isBusy}
-          className="min-w-[88px] flex-row items-center justify-center gap-2 rounded-xl px-4 py-2"
-          style={{
-            backgroundColor:
-              action === "logout"
-                ? Colors.status.danger
-                : action === "login"
-                  ? Colors.status.success
-                  : Colors.status.warning,
-            opacity: isBusy ? 0.6 : 1,
-          }}
+          accessibilityRole="button"
+          accessibilityLabel="Open WiFix"
+          onPress={() => router.push("/wifix")}
+          className="min-w-0 flex-1 flex-row items-center gap-2"
         >
-          {isBusy ? (
-            <ActivityIndicator size="small" color={Colors.black} />
-          ) : (
-            <>
-              {action === "logout" && (
-                <Ionicons name="log-out" size={17} color={Colors.black} />
-              )}
-              <Text className="text-sm font-bold" style={{ color: Colors.black }}>
-                {actionLabel}
-              </Text>
-            </>
-          )}
+          <Ionicons
+            name={status === "online" && !phase ? "checkmark-circle" : "wifi-outline"}
+            size={18}
+            color={statusColor}
+          />
+          <Text
+            className="shrink text-sm font-medium"
+            style={{ color: theme.text }}
+            numberOfLines={1}
+          >
+            {phaseLabel ?? getStatusLabel(status, campusPortalAvailable)}
+          </Text>
         </Pressable>
+        {phase ? (
+          <ActivityIndicator size="small" color={Colors.status.info} />
+        ) : actionLabel ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${actionLabel} WiFix`}
+            onPress={() => void runAction(action)}
+            className="min-w-[88px] flex-row items-center justify-center gap-2 rounded-xl px-4 py-2"
+            style={{
+              backgroundColor:
+                action === "logout"
+                  ? Colors.status.danger
+                  : action === "login"
+                    ? Colors.status.success
+                    : Colors.status.warning,
+            }}
+          >
+            {action === "logout" && (
+              <Ionicons name="log-out" size={17} color={Colors.black} />
+            )}
+            <Text className="text-sm font-bold" style={{ color: Colors.black }}>
+              {actionLabel}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {!phase && message && (
+        <Text
+          className="mt-2 text-xs"
+          style={{ color: status === "online" ? Colors.status.success : Colors.status.warning }}
+        >
+          {message}
+        </Text>
       )}
     </View>
   );

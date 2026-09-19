@@ -153,6 +153,11 @@ const isCampusPortalUrl = (url: string | null): boolean => {
   }
 };
 
+export const isRecognizedCampusPortal = (
+  connectivity: WifixConnectivityResult,
+): boolean =>
+  connectivity.state === "captive" && isCampusPortalUrl(connectivity.portalUrl);
+
 export const getPortalBaseUrl = (portalUrl: string | null): string | null => {
   if (!portalUrl) return null;
   try {
@@ -544,6 +549,15 @@ export const checkConnectivity = async (): Promise<WifixConnectivityResult> => {
       message,
     };
   }
+};
+
+export const verifyPortalLogin = async (): Promise<WifixConnectivityResult> => {
+  let result = await checkConnectivity();
+  for (let attempt = 1; attempt < 3 && result.state !== "online"; attempt++) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+    result = await checkConnectivity();
+  }
+  return result;
 };
 
 export const loginToCaptivePortal = async (params: {

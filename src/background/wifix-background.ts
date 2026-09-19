@@ -1,8 +1,10 @@
 import { getCredentials } from "@/services/auth/lms-auth";
 import {
   checkConnectivity,
+  isRecognizedCampusPortal,
   loginToCaptivePortal,
   resolvePortalSelection,
+  verifyPortalLogin,
 } from "@/services/wifix";
 import { useWifixStore } from "@/stores/wifix-store";
 import { wifixLogger } from "@/utils/wifix-logger";
@@ -13,6 +15,7 @@ const WIFIX_TASK_NAME = "wifix-background-login";
 
 const runWifixLogin =
   async (): Promise<BackgroundTask.BackgroundTaskResult> => {
+    await useWifixStore.persist.rehydrate();
     const { autoReconnectEnabled, portalBaseUrl, portalSource, manualPortalUrl } =
       useWifixStore.getState();
 
@@ -35,8 +38,8 @@ const runWifixLogin =
       return BackgroundTask.BackgroundTaskResult.Success;
     }
 
-    if (connectivity.state !== "captive") {
-      wifixLogger.error("Background task: No captive portal detected");
+    if (!isRecognizedCampusPortal(connectivity)) {
+      wifixLogger.info("Background task: Campus captive portal not detected");
       return BackgroundTask.BackgroundTaskResult.Success;
     }
 
@@ -61,7 +64,7 @@ const runWifixLogin =
     }
 
     wifixLogger.info("Background task: Verifying connection");
-    const verification = await checkConnectivity();
+    const verification = await verifyPortalLogin();
     if (verification.state === "online") {
       wifixLogger.success("Background task: Successfully reconnected");
       return BackgroundTask.BackgroundTaskResult.Success;

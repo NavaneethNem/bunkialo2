@@ -16,7 +16,7 @@ interface WifixStore extends WifixSettings {
 }
 
 const DEFAULT_SETTINGS: WifixSettings = {
-  autoReconnectEnabled: true,
+  autoReconnectEnabled: false,
   backgroundIntervalMinutes: 60,
   portalBaseUrl: null,
   manualPortalUrl: DEFAULT_MANUAL_PORTAL_URL,

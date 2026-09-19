@@ -339,6 +339,10 @@ components/
 
 ### WiFix (Captive Portal Auto Login)
 
+Auto Reconnect defaults to off. When enabled, the dashboard checks WiFi on opening
+and attempts login only after detecting the campus captive portal URL. The scheduled
+background task uses the same portal check before attempting login.
+
 1. Screen: `screens/wifix-screen.tsx` (lazy-loaded via `app/(fab-group)/wifix.tsx`).
 2. Background task: `background/wifix-background.ts` (expo-background-task + task manager).
 3. Service: `services/wifix.ts` handles connectivity detection, login/logout, URL normalization.
