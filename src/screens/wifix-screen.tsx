@@ -254,7 +254,7 @@ export default function WifixScreen() {
           ? "Connected"
           : "Connection status unavailable"
         : !campusPortalAvailable
-          ? "Not in IIIT Kottayam WiFi"
+          ? "Not in campus WiFi"
           : status === "online"
             ? "Connected"
             : status === "captive"
