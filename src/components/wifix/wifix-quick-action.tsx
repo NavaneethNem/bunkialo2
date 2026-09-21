@@ -45,7 +45,9 @@ const getPhaseLabel = (phase: WifixPhase): string | null => {
 const getStatusLabel = (
   status: WifixConnectionState,
   campusPortalAvailable: boolean,
+  message: string | null,
 ): string => {
+  if (message === "WiFi turned off") return message;
   if (status === "error") return "WiFix could not connect";
   if (!campusPortalAvailable) return "Not in campus WiFi";
   if (status === "online") return "Connected to campus WiFi";
@@ -182,7 +184,7 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
               position: "top",
             });
           } else {
-            setMessage("Login was sent, but internet access could not be verified. Try again.");
+            setMessage("Login sent · Internet is still connecting. Tap Login to check again.");
             wifixLogger.error("Home WiFix login was not verified by connectivity check");
           }
           return;
@@ -308,7 +310,7 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
             style={{ color: theme.text }}
             numberOfLines={1}
           >
-            {phaseLabel ?? getStatusLabel(status, campusPortalAvailable)}
+            {phaseLabel ?? getStatusLabel(status, campusPortalAvailable, message)}
           </Text>
         </Pressable>
         {phase ? (
@@ -337,7 +339,7 @@ export function WifixQuickAction({ theme }: WifixQuickActionProps) {
           </Pressable>
         ) : null}
       </View>
-      {!phase && message && (
+      {!phase && message && message !== "WiFi turned off" && (
         <Text
           className="mt-2 text-xs"
           style={{ color: status === "online" ? Colors.status.success : Colors.status.warning }}

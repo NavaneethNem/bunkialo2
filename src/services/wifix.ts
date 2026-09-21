@@ -16,6 +16,11 @@ import { wifixLogger } from "@/utils/wifix-logger";
 import { Platform } from "react-native";
 const CONNECTIVITY_CHECK_URL =
   "http://connectivitycheck.gstatic.com/generate_204";
+const INTERNET_VERIFICATION_URLS = [
+  "http://clients3.google.com/generate_204",
+  "https://connectivitycheck.gstatic.com/generate_204",
+  "https://www.google.com/generate_204",
+] as const;
 const DEFAULT_PORTAL_BASE_URL = "https://auth.iiitkottayam.ac.in:1442";
 const LEGACY_LOGIN_PATH = "/login?0330598d1f22608a";
 const CAMPUS_LOGIN_PATH = "/login?0330598d1f22608a";
@@ -228,6 +233,13 @@ const describeError = (error: unknown): string => {
     return detail.length > 240 ? `${detail.slice(0, 240)}...` : detail;
   }
   return "Unknown network error";
+};
+
+const isWifiUnavailableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  return /WIFI_NETWORK_UNAVAILABLE|No active Wi-?Fi network/i.test(
+    `${error.name}: ${error.message}`,
+  );
 };
 
 export const normalizePortalUrlInput = (input: string | null): string | null => {
@@ -509,7 +521,11 @@ export const checkConnectivity = async (): Promise<WifixConnectivityResult> => {
         : "Captive portal detected (no portal URL)",
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Network error";
+    const message = isWifiUnavailableError(error)
+      ? "WiFi turned off"
+      : error instanceof Error
+        ? error.message
+        : "Network error";
     const campusPortalAvailable = await resolveCampusPortalOnWifi();
     const androidState = await getAndroidWifiNetworkState();
     if (androidState?.captivePortal) {
@@ -552,12 +568,71 @@ export const checkConnectivity = async (): Promise<WifixConnectivityResult> => {
 };
 
 export const verifyPortalLogin = async (): Promise<WifixConnectivityResult> => {
-  let result = await checkConnectivity();
-  for (let attempt = 1; attempt < 3 && result.state !== "online"; attempt++) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
-    result = await checkConnectivity();
+  const retryDelaysMs = [0, 1000, 2000, 3000] as const;
+
+  for (const retryDelayMs of retryDelaysMs) {
+    if (retryDelayMs > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+
+    const probes = await Promise.allSettled(
+      INTERNET_VERIFICATION_URLS.map((url) =>
+        requestOnWifixNetwork(
+          url,
+          {
+            method: "GET",
+            cache: "no-store",
+            redirect: "manual",
+          },
+          5000,
+        ),
+      ),
+    );
+
+    for (const probe of probes) {
+      if (probe.status === "fulfilled") {
+        const response = probe.value;
+        wifixLogger.info(
+          `Login verification probe: ${describeResponse(response)}`,
+        );
+        if (response.status === 204) {
+          wifixLogger.success(
+            "Login verified with an internet request routed through WiFi",
+          );
+          return {
+            state: "online",
+            portalUrl: null,
+            portalBaseUrl: null,
+            campusPortalAvailable: true,
+            statusCode: response.status,
+            message: "Online",
+          };
+        }
+      } else {
+        wifixLogger.info(
+          `Login verification probe failed: ${describeError(probe.reason)}`,
+        );
+      }
+    }
+
+    if (
+      probes.every(
+        (probe) =>
+          probe.status === "rejected" && isWifiUnavailableError(probe.reason),
+      )
+    ) {
+      return {
+        state: "offline",
+        portalUrl: null,
+        portalBaseUrl: null,
+        campusPortalAvailable: false,
+        statusCode: null,
+        message: "WiFi turned off",
+      };
+    }
   }
-  return result;
+
+  return checkConnectivity();
 };
 
 export const loginToCaptivePortal = async (params: {
