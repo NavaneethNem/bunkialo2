@@ -426,6 +426,14 @@ bun run test:e2e:hosted-timetable
 bun run test:e2e:hosted-auth -- --headed
 ```
 
+## OTA Runtime Compatibility
+
+- Production OTA updates must keep runtime version `1.4.1` so they remain compatible
+  with installed app version `1.4.1 (59)`.
+- Do not bump `package.json` or the Expo runtime version inside the OTA workflow.
+- If a change requires new native Android or iOS code, publish a new native build with
+  its matching runtime instead of sending that change as a `1.4.1` OTA update.
+
 ## Script Session Utility
 
 - Reuse `tests/helpers/lms-session.ts` in LMS test scripts.
