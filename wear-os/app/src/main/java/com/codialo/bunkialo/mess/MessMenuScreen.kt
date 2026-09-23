@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.wear.compose.foundation.hierarchicalFocusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,21 +63,29 @@ fun MessMenuScreen(
         modifier = Modifier.fillMaxSize(),
     ) { page ->
         val day = TimetableDay.entries[page % TimetableDay.entries.size]
-        DayMessMenu(
-            day = day,
-            now = now,
-            menu = menu,
-            onPreviousDay = {
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                }
-            },
-            onNextDay = {
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                }
-            },
-        )
+        val isCurrentMessPage = pagerState.currentPage == page
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hierarchicalFocusGroup(active = isCurrentMessPage),
+        ) {
+            DayMessMenu(
+                day = day,
+                now = now,
+                menu = menu,
+                onPreviousDay = {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                    }
+                },
+                onNextDay = {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                    }
+                },
+            )
+        }
     }
 }
 

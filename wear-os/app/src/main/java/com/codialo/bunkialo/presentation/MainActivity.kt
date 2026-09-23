@@ -13,6 +13,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.wear.compose.foundation.hierarchicalFocusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -152,7 +153,11 @@ fun TimetableApp() {
                 if (vPage == 0) {
                     val messRepo = remember { com.codialo.bunkialo.mess.MessMenuRepository(context) }
                     val messMenu = remember { messRepo.loadMenu() }
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .hierarchicalFocusGroup(active = verticalPagerState.currentPage == 0),
+                    ) {
                         com.codialo.bunkialo.mess.MessMenuScreen(
                             pagerState = messPagerState,
                             now = now.value,
@@ -171,24 +176,35 @@ fun TimetableApp() {
                         )
                     }
                 } else {
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .hierarchicalFocusGroup(active = verticalPagerState.currentPage == 1),
+                    ) {
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.fillMaxSize(),
                         ) { page ->
-                            DaySchedule(
-                                day = TimetableDay.entries[page % TimetableDay.entries.size],
-                                now = now.value,
-                                timetable = timetable.value,
-                                onReset = {
-                                    timetable.value = repository.resetToTemplate()
-                                },
-                                onOpenMess = {
-                                    coroutineScope.launch {
-                                        verticalPagerState.animateScrollToPage(0)
-                                    }
-                                },
-                            )
+                            val isCurrentTimetablePage = pagerState.currentPage == page
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .hierarchicalFocusGroup(active = isCurrentTimetablePage),
+                            ) {
+                                DaySchedule(
+                                    day = TimetableDay.entries[page % TimetableDay.entries.size],
+                                    now = now.value,
+                                    timetable = timetable.value,
+                                    onReset = {
+                                        timetable.value = repository.resetToTemplate()
+                                    },
+                                    onOpenMess = {
+                                        coroutineScope.launch {
+                                            verticalPagerState.animateScrollToPage(0)
+                                        }
+                                    },
+                                )
+                            }
                         }
                         Box(
                             modifier = Modifier

@@ -103,16 +103,7 @@ data class TimetableEvent(
 
     // Abbreviated name for the complication
     val shortTitle: String
-        get() = when (course.id) {
-            "DAA" -> "DAA"
-            "TOC" -> "TOC"
-            "IT_WORKSHOP" -> "IT"
-            "PROBABILITY" -> "PSRP"
-            "DBMS" -> "DBMS"
-            "DSA_II" -> "DSA II"
-            "COGNITIVE_SCIENCE" -> "CogSci"
-            else -> course.label
-        }
+        get() = course.abbreviatedName()
 
     val time: String
         get() = "${formatTime(startMinutes)}–${formatTime(endMinutes)}"
@@ -122,6 +113,53 @@ data class TimetableEvent(
 
     fun isHappeningAt(now: LocalDateTime): Boolean =
         isHappeningAt(now.hour * 60 + now.minute)
+}
+
+fun TimetableCourse.abbreviatedName(): String {
+    // 1. Direct match by id in Course enum
+    Course.entries.firstOrNull { it.name.equals(id, ignoreCase = true) }?.let { return it.shortLabel }
+
+    // 2. Direct match by label in Course enum
+    Course.entries.firstOrNull { it.label.equals(label, ignoreCase = true) }?.let { return it.shortLabel }
+
+    // 3. Match by shortLabel in Course enum
+    Course.entries.firstOrNull {
+        it.shortLabel.equals(id, ignoreCase = true) || it.shortLabel.equals(label, ignoreCase = true)
+    }?.let { return it.shortLabel }
+
+    // 4. Extract acronym or abbreviation from parentheses, e.g. "Database Management Systems (DBMS)" -> "DBMS"
+    val parenMatch = Regex("\\(([A-Za-z0-9\\s]{2,7})\\)").find(label)
+    if (parenMatch != null) {
+        return parenMatch.groupValues[1].trim()
+    }
+
+    // 5. Course code prefix like "CSE311 - Database Management Systems" or "CSE311: Database Management Systems"
+    val codePrefixRegex = Regex("^([A-Za-z]{2,}\\s*\\d{2,})\\s*(?:[-:]\\s*)?")
+    val codeMatch = codePrefixRegex.find(label.trim())
+    if (codeMatch != null) {
+        val courseCode = codeMatch.groupValues[1].replace("\\s+".toRegex(), "")
+        val restOfName = label.trim().substring(codeMatch.range.last + 1).trim()
+        Course.entries.firstOrNull { it.label.equals(restOfName, ignoreCase = true) }?.let { return it.shortLabel }
+        if (courseCode.length in 3..7) {
+            return courseCode
+        }
+    }
+
+    // 6. If already short (<= 6 chars), use label
+    if (label.length <= 6) return label
+
+    // 7. Acronym from words (e.g., "Operating Systems" -> "OS", "Software Engineering" -> "SE")
+    val stopWords = setOf("and", "of", "to", "in", "for", "the", "on", "with", "a", "an")
+    val words = label.split("\\s+".toRegex())
+        .map { it.trim().trim('(', ')', '-', ':', ',') }
+        .filter { it.isNotBlank() && it.lowercase() !in stopWords }
+
+    if (words.size in 2..5) {
+        val acronym = words.mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("")
+        if (acronym.length in 2..6) return acronym
+    }
+
+    return label.take(6)
 }
 
 fun breakHoursBetween(
