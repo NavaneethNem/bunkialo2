@@ -89,7 +89,9 @@ const GrainyGradient: React.FC<IGrainyGradient> = ({
     uBrightness: brightness,
   }));
 
-  if (!shader) return null;
+  if (!shader) {
+    throw new Error("Skia could not create the grainy gradient shader.");
+  }
 
   return (
     <Canvas style={[{ width, height }, style]}>

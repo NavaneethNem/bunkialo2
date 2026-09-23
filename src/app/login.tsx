@@ -1,4 +1,3 @@
-import GrainyGradient from "@/components/shared/ui/organisms/grainy-gradient";
 import { LoginCredentialsStep } from "@/components/auth/login-credentials-step";
 import { PortalChallengeStep } from "@/components/auth/portal-challenge-step";
 import { login } from "@/services/auth/login";
@@ -11,10 +10,20 @@ import { getWebCredential } from "@/services/auth/web-password-manager.web";
 import { DESKTOP_PAIRING_ROUTE } from "@/services/desktop-pairing";
 import { useAuthStore } from "@/stores/auth-store";
 import type { AuthLoginRequest } from "@/types";
+import * as Device from "expo-device";
+import { Component, Suspense, lazy, useEffect, useState } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { StatusBar } from "expo-status-bar";
 import { router, useGlobalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import {
+  InteractionManager,
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -22,6 +31,47 @@ type ChallengeRequest = Extract<
   AuthLoginRequest,
   { provider: "attendancePortal"; mode: "totp" | "emailOtp" | "backupCode" }
 >;
+
+type LoginBackgroundMode = "waiting" | "animated" | "static" | "fallback";
+
+const DeferredGrainyGradient = lazy(
+  () => import("@/components/shared/ui/organisms/grainy-gradient"),
+);
+
+interface LoginBackgroundErrorBoundaryProps {
+  children: ReactNode;
+  onFallback: () => void;
+}
+
+interface LoginBackgroundErrorBoundaryState {
+  hasError: boolean;
+}
+
+class LoginBackgroundErrorBoundary extends Component<
+  LoginBackgroundErrorBoundaryProps,
+  LoginBackgroundErrorBoundaryState
+> {
+  state: LoginBackgroundErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): LoginBackgroundErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(
+      "Login background animation failed; using static background.",
+      {
+        error,
+        componentStack: info.componentStack,
+      },
+    );
+    this.props.onFallback();
+  }
+
+  render(): ReactNode {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
 
 export default function LoginScreen() {
   const [step, setStep] = useState<"lms" | "attendance">("lms");
@@ -33,8 +83,28 @@ export default function LoginScreen() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const canAttemptLoginAnimation =
+    Platform.OS === "web" ||
+    (Device.deviceYearClass !== null && Device.deviceYearClass >= 2020);
+  const [backgroundMode, setBackgroundMode] = useState<LoginBackgroundMode>(
+    canAttemptLoginAnimation ? "waiting" : "static",
+  );
   const completeLogin = useAuthStore((state) => state.completeLogin);
   const params = useGlobalSearchParams<{ returnTo?: string }>();
+
+  useEffect(() => {
+    if (!canAttemptLoginAnimation) return;
+
+    let startTimer: ReturnType<typeof setTimeout> | undefined;
+    const interactionTask = InteractionManager.runAfterInteractions(() => {
+      startTimer = setTimeout(() => setBackgroundMode("animated"), 1200);
+    });
+
+    return () => {
+      interactionTask.cancel();
+      if (startTimer) clearTimeout(startTimer);
+    };
+  }, [canAttemptLoginAnimation]);
 
   const finishLogin = (username: string): void => {
     completeLogin(username);
@@ -46,11 +116,20 @@ export default function LoginScreen() {
   useEffect(() => {
     if (process.env.EXPO_OS !== "web") return;
     let active = true;
-    void getWebCredential().then((credential) => {
-      if (!active || !credential) return;
-      setRollNumber(credential.identifier);
-      setLmsPassword(credential.password);
-    });
+    void getWebCredential()
+      .then((credential) => {
+        if (!active || !credential) return;
+        setRollNumber(credential.identifier);
+        setLmsPassword(credential.password);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Could not restore the saved sign-in.",
+        );
+      });
     return () => {
       active = false;
     };
@@ -59,24 +138,34 @@ export default function LoginScreen() {
   const submitLms = async (): Promise<void> => {
     setLoading(true);
     setError(null);
-    const result = await login({
-      provider: "lms",
-      mode: "password",
-      username: rollNumber.trim(),
-      password: lmsPassword,
-    });
-    setLoading(false);
-    if (result.status === "success") {
-      const attendanceCredentials = await getAttendanceCredentials();
-      if (attendanceCredentials) {
-        void checkAttendanceSession();
-        completeLogin(rollNumber.trim());
+    try {
+      const result = await login({
+        provider: "lms",
+        mode: "password",
+        username: rollNumber.trim(),
+        password: lmsPassword,
+      });
+      if (result.status === "success") {
+        const attendanceCredentials = await getAttendanceCredentials();
+        if (attendanceCredentials) {
+          void checkAttendanceSession().catch((error: unknown) => {
+            console.error(
+              "Could not verify the saved attendance session.",
+              error,
+            );
+          });
+          completeLogin(rollNumber.trim());
+          return;
+        }
+        setStep("attendance");
         return;
       }
-      setStep("attendance");
-      return;
+      if (result.status === "failure") setError(result.message);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not sign in.");
+    } finally {
+      setLoading(false);
     }
-    if (result.status === "failure") setError(result.message);
   };
 
   const handlePortalResult = (
@@ -124,7 +213,9 @@ export default function LoginScreen() {
       const result = await login({ ...challenge, code: code.trim() });
       handlePortalResult(result);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not verify the code.");
+      setError(
+        error instanceof Error ? error.message : "Could not verify the code.",
+      );
     } finally {
       setLoading(false);
     }
@@ -133,17 +224,31 @@ export default function LoginScreen() {
   return (
     <View className="flex-1 bg-black">
       <StatusBar style="light" />
-      <GrainyGradient
-        colors={["#111113", "#1B1B20", "#26262C", "#16161A"]}
-        speed={2.2}
-        intensity={0.1}
-        size={1.6}
-        amplitude={0.1}
-        brightness={0.015}
-        resolutionScale={0.3}
-        settleMs={1800}
-        style={{ position: "absolute", inset: 0 }}
-      />
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: "#111113" }]}
+      >
+        {backgroundMode === "animated" ? (
+          <LoginBackgroundErrorBoundary
+            key="animated-background"
+            onFallback={() => setBackgroundMode("fallback")}
+          >
+            <Suspense fallback={null}>
+              <DeferredGrainyGradient
+                colors={["#111113", "#1B1B20", "#26262C", "#16161A"]}
+                speed={1.8}
+                intensity={0.08}
+                size={1.6}
+                amplitude={0.08}
+                brightness={0.01}
+                resolutionScale={0.18}
+                settleMs={1400}
+                style={StyleSheet.absoluteFill}
+              />
+            </Suspense>
+          </LoginBackgroundErrorBoundary>
+        ) : null}
+      </View>
       <View className="absolute inset-0 bg-black/35" />
       <SafeAreaView className="flex-1 px-5">
         <KeyboardAwareScrollView
@@ -241,6 +346,19 @@ export default function LoginScreen() {
                 ? "Credentials are saved in this browser so your session can be restored."
                 : "Credentials stay encrypted on this device."}
             </Text>
+            {backgroundMode === "static" ? (
+              <Text className="text-center text-xs text-zinc-600">
+                Animated background is off on older or unclassified devices to
+                keep sign-in reliable.
+              </Text>
+            ) : backgroundMode === "fallback" ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                className="text-center text-xs text-zinc-600"
+              >
+                Background animation was turned off; sign-in is unaffected.
+              </Text>
+            ) : null}
           </View>
         </KeyboardAwareScrollView>
       </SafeAreaView>
