@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
@@ -31,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -63,6 +65,7 @@ import com.codialo.bunkialo.schedule.events
 import com.codialo.bunkialo.schedule.focusDay
 import java.time.LocalDateTime
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextAlign
 import java.util.concurrent.Executors
 
@@ -108,29 +111,96 @@ fun TimetableApp() {
                 initialPage = firstPage,
                 pageCount = { Int.MAX_VALUE },
             )
-            Box(modifier = Modifier.fillMaxSize()) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                ) { page ->
-                    DaySchedule(
-                        day = TimetableDay.entries[page % TimetableDay.entries.size],
-                        now = now.value,
-                        timetable = timetable.value,
-                        onReset = {
-                            timetable.value = repository.resetToTemplate()
-                        },
-                    )
+            val messPagerState = rememberPagerState(
+                initialPage = firstPage,
+                pageCount = { Int.MAX_VALUE },
+            )
+            val coroutineScope = rememberCoroutineScope()
+            val verticalPagerState = rememberPagerState(
+                initialPage = 1,
+                pageCount = { 2 },
+            )
+
+            LaunchedEffect(verticalPagerState.currentPage) {
+                if (verticalPagerState.currentPage == 0) {
+                    val currentDayIndex = pagerState.currentPage % TimetableDay.entries.size
+                    val messDayIndex = messPagerState.currentPage % TimetableDay.entries.size
+                    if (currentDayIndex != messDayIndex) {
+                        val targetPage = messPagerState.currentPage - messDayIndex + currentDayIndex
+                        messPagerState.scrollToPage(targetPage)
+                    }
+                } else {
+                    val messDayIndex = messPagerState.currentPage % TimetableDay.entries.size
+                    val currentDayIndex = pagerState.currentPage % TimetableDay.entries.size
+                    if (messDayIndex != currentDayIndex) {
+                        val targetPage = pagerState.currentPage - currentDayIndex + messDayIndex
+                        pagerState.scrollToPage(targetPage)
+                    }
                 }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .fillMaxHeight()
-                        .width(36.dp)
-                        .edgeBackGesture {
-                            backDispatcher?.onBackPressed()
-                        },
-                )
+            }
+
+            BackHandler(enabled = verticalPagerState.currentPage == 0) {
+                coroutineScope.launch {
+                    verticalPagerState.animateScrollToPage(1)
+                }
+            }
+
+            androidx.compose.foundation.pager.VerticalPager(
+                state = verticalPagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { vPage ->
+                if (vPage == 0) {
+                    val messRepo = remember { com.codialo.bunkialo.mess.MessMenuRepository(context) }
+                    val messMenu = remember { messRepo.loadMenu() }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        com.codialo.bunkialo.mess.MessMenuScreen(
+                            pagerState = messPagerState,
+                            now = now.value,
+                            menu = messMenu,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .fillMaxHeight()
+                                .width(36.dp)
+                                .edgeBackGesture {
+                                    coroutineScope.launch {
+                                        verticalPagerState.animateScrollToPage(1)
+                                    }
+                                },
+                        )
+                    }
+                } else {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize(),
+                        ) { page ->
+                            DaySchedule(
+                                day = TimetableDay.entries[page % TimetableDay.entries.size],
+                                now = now.value,
+                                timetable = timetable.value,
+                                onReset = {
+                                    timetable.value = repository.resetToTemplate()
+                                },
+                                onOpenMess = {
+                                    coroutineScope.launch {
+                                        verticalPagerState.animateScrollToPage(0)
+                                    }
+                                },
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .fillMaxHeight()
+                                .width(36.dp)
+                                .edgeBackGesture {
+                                    backDispatcher?.onBackPressed()
+                                },
+                        )
+                    }
+                }
             }
         }
     }
@@ -187,6 +257,7 @@ private fun DaySchedule(
     now: LocalDateTime,
     timetable: WearTimetableData,
     onReset: () -> Unit,
+    onOpenMess: () -> Unit,
 ) {
     val listState = rememberTransformingLazyColumnState()
     val context = LocalContext.current
@@ -236,21 +307,56 @@ private fun DaySchedule(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                         )
-                        if (timetable.source != WearTimetableSource.TEMPLATE) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(24.dp)
-                                    .clickable(onClick = onReset),
+                                    .clickable(onClick = onOpenMess),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 androidx.wear.compose.material3.Icon(
-                                    painter = painterResource(R.drawable.ic_reset_24),
-                                    contentDescription = "Reset timetable to template",
+                                    painter = painterResource(R.drawable.ic_restaurant_24),
+                                    contentDescription = "View mess menu",
                                     tint = Color(0xFF8A8A8A),
-                                    modifier = Modifier.size(12.dp),
+                                    modifier = Modifier.size(13.dp),
                                 )
                             }
+                            if (timetable.source != WearTimetableSource.TEMPLATE) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clickable(onClick = onReset),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    androidx.wear.compose.material3.Icon(
+                                        painter = painterResource(R.drawable.ic_reset_24),
+                                        contentDescription = "Reset timetable to template",
+                                        tint = Color(0xFF8A8A8A),
+                                        modifier = Modifier.size(12.dp),
+                                    )
+                                }
+                            }
                         }
+                    }
+                }
+            }
+            if (events.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (isToday) "No classes scheduled today" else "No classes scheduled",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF8A8A8A),
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             }
