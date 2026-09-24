@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -469,53 +468,58 @@ private fun TimetableCard(event: TimetableEvent, highlight: EventHighlight) {
         ),
         border = highlightBorder?.let { BorderStroke(2.dp, it) },
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(5.dp)
-                        .height(42.dp)
-                        .background(colors.accent, RoundedCornerShape(50)),
+                    .width(5.dp)
+                    .height(42.dp)
+                    .background(colors.accent, RoundedCornerShape(50)),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = event.course.label,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge,
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = event.course.label,
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+                if (event.course.faculty.isNotBlank()) {
                     Text(
                         text = event.course.faculty,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 2,
                     )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     Text(
                         text = event.time,
                         style = MaterialTheme.typography.labelMedium,
                     )
-                }
-            }
-            if (event.isLab) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 7.dp, end = 8.dp)
-                        .size(23.dp)
-                        .border(2.dp, Color.Black, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "L",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelSmall,
-                    )
+                    if (event.isLab) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = Color.Black.copy(alpha = 0.14f),
+                                    shape = RoundedCornerShape(4.dp),
+                                )
+                                .padding(horizontal = 5.dp, vertical = 1.dp),
+                        ) {
+                            Text(
+                                text = "LAB",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    }
                 }
             }
         }
