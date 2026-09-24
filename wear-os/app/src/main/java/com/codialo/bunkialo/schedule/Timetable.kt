@@ -26,49 +26,49 @@ enum class Course(
     DAA(
         "Design and Analysis of Algorithms",
         "DAA",
-        "",
+        "Priyadharshini",
         Pastel.ROSE
     ),
 
     TOC(
         "Theory of Computation",
         "TOC",
-        "",
+        "Divya",
         Pastel.LAVENDER
     ),
 
     IT_WORKSHOP(
         "IT Workshop III",
         "IT",
-        "",
+        "Deepak",
         Pastel.MINT
     ),
 
     PROBABILITY(
         "Probability, Statistics and Random Processes",
         "PSRP",
-        "",
+        "Anandhu",
         Pastel.BLUE
     ),
 
     DBMS(
         "Database Management Systems",
         "DBMS",
-        "",
+        "Venkatesh",
         Pastel.PEACH
     ),
 
     DSA_II(
         "Data Structures II",
         "DSA II",
-        "",
+        "Sara",
         Pastel.YELLOW
     ),
 
     COGNITIVE_SCIENCE(
         "Introduction to Cognitive Science",
         "CogSci",
-        "",
+        "Gayathri",
         Pastel.LILAC
     ),
 }
