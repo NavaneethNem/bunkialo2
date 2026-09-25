@@ -1,6 +1,7 @@
 package com.codialo.bunkialo.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -33,13 +34,20 @@ fun ScreenModeToggle(
             .clickable(role = Role.Button, onClick = onToggle),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(
-                if (isMessSelected) R.drawable.ic_class_schedule_24 else R.drawable.ic_restaurant_24,
-            ),
-            contentDescription = null,
-            tint = Color(0xFF8A8A8A),
-            modifier = Modifier.size(18.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .background(Color(0xFF292929), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(
+                    if (isMessSelected) R.drawable.ic_class_schedule_24 else R.drawable.ic_restaurant_24,
+                ),
+                contentDescription = null,
+                tint = Color(0xFFB0B0B0),
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
