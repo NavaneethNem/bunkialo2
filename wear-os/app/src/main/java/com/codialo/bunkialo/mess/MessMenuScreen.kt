@@ -47,6 +47,7 @@ import androidx.wear.compose.material3.Text
 import com.codialo.bunkialo.R
 import com.codialo.bunkialo.schedule.Pastel
 import com.codialo.bunkialo.schedule.TimetableDay
+import com.codialo.bunkialo.ui.ScreenModeToggle
 import java.time.LocalDateTime
 import kotlinx.coroutines.launch
 
@@ -55,6 +56,8 @@ fun MessMenuScreen(
     pagerState: PagerState,
     now: LocalDateTime,
     menu: Map<java.time.DayOfWeek, DayMenu>,
+    isMessSelected: Boolean,
+    onToggleMode: () -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
 
@@ -74,6 +77,8 @@ fun MessMenuScreen(
                 day = day,
                 now = now,
                 menu = menu,
+                isMessSelected = isMessSelected,
+                onToggleMode = onToggleMode,
                 onPreviousDay = {
                     coroutineScope.launch {
                         pagerState.animateScrollToPage(pagerState.currentPage - 1)
@@ -94,6 +99,8 @@ private fun DayMessMenu(
     day: TimetableDay,
     now: LocalDateTime,
     menu: Map<java.time.DayOfWeek, DayMenu>,
+    isMessSelected: Boolean,
+    onToggleMode: () -> Unit,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
 ) {
@@ -128,17 +135,20 @@ private fun DayMessMenu(
     }
 
     ScreenScaffold(scrollState = listState) { contentPadding ->
-        TransformingLazyColumn(
-            state = listState,
-            contentPadding = contentPadding,
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            TransformingLazyColumn(
+                state = listState,
+                contentPadding = contentPadding,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
             item {
                 ListHeader(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
@@ -155,22 +165,11 @@ private fun DayMessMenu(
                             )
                         }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_restaurant_24),
-                                contentDescription = null,
-                                tint = Color(0xFF8A8A8A),
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                text = "MESS • ${day.shortName}",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                        Text(
+                            text = day.shortName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF8A8A8A),
+                        )
 
                         Box(
                             modifier = Modifier
@@ -221,6 +220,17 @@ private fun DayMessMenu(
                     }
                 }
             }
+            }
+            ScreenModeToggle(
+                isMessSelected = isMessSelected,
+                onToggle = onToggleMode,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(
+                        top = contentPadding.calculateTopPadding() + 8.dp,
+                        end = 40.dp,
+                    ),
+            )
         }
     }
 }
