@@ -23,54 +23,14 @@ enum class Course(
     val faculty: String,
     val pastel: Pastel,
 ) {
-    DAA(
-        "Design and Analysis of Algorithms",
-        "DAA",
-        "Priyadharshini",
-        Pastel.ROSE
-    ),
-
-    TOC(
-        "Theory of Computation",
-        "TOC",
-        "Divya",
-        Pastel.LAVENDER
-    ),
-
-    IT_WORKSHOP(
-        "IT Workshop III",
-        "IT",
-        "Deepak",
-        Pastel.MINT
-    ),
-
-    PROBABILITY(
-        "Probability, Statistics and Random Processes",
-        "PSRP",
-        "Anandhu",
-        Pastel.BLUE
-    ),
-
-    DBMS(
-        "Database Management Systems",
-        "DBMS",
-        "Venkatesh",
-        Pastel.PEACH
-    ),
-
-    DSA_II(
-        "Data Structures II",
-        "DSA II",
-        "Sara",
-        Pastel.YELLOW
-    ),
-
-    COGNITIVE_SCIENCE(
-        "Introduction to Cognitive Science",
-        "CogSci",
-        "Gayathri",
-        Pastel.LILAC
-    ),
+    DSP("DSP", "DSP", "Nisha", Pastel.ROSE),
+    AI("AI", "AI", "Sreeja", Pastel.LAVENDER),
+    OPTIMISATION("Optimisation", "OPT", "Susheel", Pastel.MINT),
+    PDC("PDC", "PDC", "Sridhar", Pastel.BLUE),
+    SAPD("SAPD", "SAPD", "Dakshu", Pastel.PEACH),
+    HR("HR", "HR", "Mathew Joseph", Pastel.YELLOW),
+    FINANCIAL("FIN", "FIN", "Raghunadhan", Pastel.LILAC),
+    OPS("OPS", "OPS", "Mathew CD", Pastel.AQUA),
 }
 
 data class TimetableCourse(
@@ -235,168 +195,37 @@ private fun Course.toTimetableCourse(): TimetableCourse =
     )
 
 val templateTimetable: Map<TimetableDay, List<TimetableEvent>> = mapOf(
-
     TimetableDay.MONDAY to listOf(
-        event(
-            Course.DAA,
-            9, 0,
-            10, 0
-        ),
-
-        event(
-            Course.DAA,
-            12, 0,
-            13, 0
-        ),
-
-        event(
-            Course.TOC,
-            14, 0,
-            15, 0
-        ),
-
-        event(
-            Course.TOC,
-            16, 0,
-            17, 0
-        ),
+        event(Course.OPS, 11, 30, 12, 25),
+        event(Course.PDC, 12, 30, 13, 25),
     ),
-
     TimetableDay.TUESDAY to listOf(
-        event(
-            Course.TOC,
-            9, 0,
-            10, 0
-        ),
-
-        event(
-            Course.IT_WORKSHOP,
-            10, 0,
-            11, 0
-        ),
-
-        event(
-            Course.DAA,
-            11, 0,
-            12, 0
-        ),
-
-        event(
-            Course.TOC,
-            12, 3,
-            13, 0
-        ),
-
-        event(
-            Course.DAA,
-            14, 0,
-            15, 0
-        ),
-
-        event(
-            Course.DAA,
-            16, 0,
-            17, 0
-        ),
+        event(Course.SAPD, 9, 30, 10, 25),
+        event(Course.SAPD, 11, 30, 13, 25, isLab = true),
+        event(Course.HR, 14, 30, 15, 25),
+        event(Course.FINANCIAL, 15, 30, 16, 25),
+        event(Course.PDC, 16, 30, 17, 25),
     ),
-
     TimetableDay.WEDNESDAY to listOf(
-        event(
-            Course.IT_WORKSHOP,
-            9, 0,
-            11, 0,
-            isLab = true
-        ),
-
-        event(
-            Course.PROBABILITY,
-            11, 0,
-            11, 55
-        ),
-
-        event(
-            Course.DBMS,
-            12, 0,
-            13, 0
-        ),
-
-        event(
-            Course.DSA_II,
-            14, 0,
-            16, 0,
-            isLab = true
-        ),
-
-        event(
-            Course.COGNITIVE_SCIENCE,
-            16, 0,
-            17, 0
-        ),
+        event(Course.OPTIMISATION, 9, 30, 10, 25),
+        event(Course.AI, 10, 30, 11, 25),
+        event(Course.PDC, 11, 30, 13, 25, isLab = true),
+        event(Course.AI, 14, 30, 15, 25),
+        event(Course.OPTIMISATION, 15, 30, 16, 25),
+        event(Course.DSP, 16, 30, 17, 25),
     ),
-
     TimetableDay.THURSDAY to listOf(
-        event(
-            Course.DBMS,
-            9, 0,
-            10, 0
-        ),
-
-        event(
-            Course.PROBABILITY,
-            10, 0,
-            11, 0
-        ),
-
-        event(
-            Course.DBMS,
-            11, 0,
-            13, 0,
-            isLab = true
-        ),
-
-        event(
-            Course.PROBABILITY,
-            14, 0,
-            14, 55
-        ),
-
-        event(
-            Course.IT_WORKSHOP,
-            15, 0,
-            16, 0
-        ),
-
-        event(
-            Course.COGNITIVE_SCIENCE,
-            16, 0,
-            16, 59
-        ),
+        event(Course.SAPD, 9, 30, 10, 25),
+        event(Course.PDC, 10, 30, 11, 25),
+        event(Course.DSP, 11, 30, 12, 25),
+        event(Course.SAPD, 12, 30, 13, 25),
+        event(Course.DSP, 14, 30, 16, 25, isLab = true),
+        event(Course.OPTIMISATION, 16, 30, 17, 25),
     ),
-
     TimetableDay.FRIDAY to listOf(
-        event(
-            Course.IT_WORKSHOP,
-            9, 0,
-            10, 0
-        ),
-
-        event(
-            Course.PROBABILITY,
-            10, 0,
-            11, 0
-        ),
-
-        event(
-            Course.DBMS,
-            11, 0,
-            12, 0
-        ),
-
-        event(
-            Course.DSA_II,
-            12, 0,
-            13, 0
-        ),
+        event(Course.AI, 9, 30, 10, 25),
+        event(Course.DSP, 10, 30, 11, 25),
+        event(Course.AI, 11, 30, 13, 25, isLab = true),
     ),
 )
 
